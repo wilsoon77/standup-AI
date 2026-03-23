@@ -57,6 +57,22 @@ const GITHUB_HEADERS = (token: string) => ({
   "X-GitHub-Api-Version": "2022-11-28",
 });
 
+export async function getRealGitHubUsername(token: string, fallback: string): Promise<string> {
+  // If fallback has no spaces and is not empty, it MIGHT be the real username.
+  // But wait! Play it 100% safe: always fetch the profile if the fallback has spaces,
+  // or just fetch it and cache it if we suspect it's a generic "Name Surname".
+  if (!fallback || fallback.includes(" ")) {
+    try {
+      const res = await fetch("https://api.github.com/user", { headers: GITHUB_HEADERS(token) });
+      const profile = await res.json();
+      return profile.login ?? fallback.replace(/\s+/g, "");
+    } catch {
+      return fallback.replace(/\s+/g, "");
+    }
+  }
+  return fallback;
+}
+
 export async function fetchGitHubActivity(
   token: string,
   username: string,

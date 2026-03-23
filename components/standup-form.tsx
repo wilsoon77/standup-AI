@@ -70,6 +70,15 @@ export function StandupForm({ username }: Props) {
     setLoading(true);
     setResult("");
     setProvider("");
+
+    // Auto-scroll to the bottom card
+    setTimeout(() => {
+      document.getElementById("result-section")?.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "end" 
+      });
+    }, 100);
+
     try {
       const res = await fetch("/api/standup", {
         method: "POST",
@@ -80,16 +89,43 @@ export function StandupForm({ username }: Props) {
           repos: selectedRepos.length > 0 ? selectedRepos : undefined,
         }),
       });
-      const data = await res.json();
-      if (data.error) {
-        setResult(`Error: ${data.error}`);
-      } else {
-        setResult(data.content ?? "Error al generar");
-        setProvider(data.provider ?? "");
-        if (data.activity) setActivity(data.activity);
+
+      if (!res.ok) {
+        // Handle normal JSON errors from the server 
+        const errorData = await res.json().catch(() => null);
+        setResult(`Error: ${errorData?.error || "Ocurrió un error inesperado al generar."}`);
+        setLoading(false);
+        return;
+      }
+
+      setProvider("Groq / OpenRouter"); 
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No se pudo leer el stream");
+
+      const decoder = new TextDecoder();
+      let streamText = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          // Separar en pedazos muy pequeños para forzar visualización de streaming
+          // incluso si la API de Groq responde en 200 milisegundos.
+          const chars = chunk.split("");
+          for (let i = 0; i < chars.length; i += 2) {
+             streamText += chars.slice(i, i + 2).join("");
+             setResult(streamText);
+             // Ligera pausa visual (approx 60fps)
+             await new Promise(r => setTimeout(r, 10)); 
+          }
+        }
+        
+        if (done) break;
       }
     } catch {
-      setResult("Ocurrió un error. Intenta de nuevo.");
+      setResult("Ocurrió un error al contactar al servidor o leer el texto.");
     } finally {
       setLoading(false);
     }
@@ -105,6 +141,7 @@ export function StandupForm({ username }: Props) {
     setSelectedRepos((prev) =>
       prev.includes(repo) ? prev.filter((r) => r !== repo) : [...prev, repo]
     );
+    setResult(""); // Clear old result
   }
 
   const totalActivity =
@@ -142,7 +179,10 @@ export function StandupForm({ username }: Props) {
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setResult("");
+              }}
               className="w-full border border-border/50 rounded-lg px-3 py-2.5 text-sm bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
             />
           </div>
@@ -150,14 +190,20 @@ export function StandupForm({ username }: Props) {
           {/* Tone selector */}
           <div className="space-y-1.5">
             <label className="text-sm text-muted-foreground">Tono</label>
-            <Select value={tone} onValueChange={(v) => setTone(v as Tone)}>
+            <Select 
+              value={tone} 
+              onValueChange={(v) => {
+                setTone(v as Tone);
+                setResult("");
+              }}
+            >
               <SelectTrigger className="bg-secondary/50 border-border/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="formal">📋 Formal</SelectItem>
-                <SelectItem value="casual">💬 Casual</SelectItem>
-                <SelectItem value="humor">😄 Con humor</SelectItem>
+                <SelectItem value="formal">Formal</SelectItem>
+                <SelectItem value="casual">Casual</SelectItem>
+                <SelectItem value="humor">Con humor</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -176,11 +222,10 @@ export function StandupForm({ username }: Props) {
                     variant={
                       selectedRepos.includes(repo) ? "default" : "secondary"
                     }
-                    className={`cursor-pointer text-xs transition-all ${
-                      selectedRepos.includes(repo)
+                    className={`cursor-pointer text-xs transition-all ${selectedRepos.includes(repo)
                         ? "gradient-primary text-primary-foreground shadow-sm"
                         : "hover:bg-accent"
-                    }`}
+                      }`}
                     onClick={() => toggleRepo(repo)}
                   >
                     {repo}
@@ -234,8 +279,8 @@ export function StandupForm({ username }: Props) {
       )}
 
       {/* ─── Result Card ─────────────────────────────────────── */}
-      {result && (
-        <Card className="glass border-border/50 animate-fade-in-scale">
+      {(result || loading) && (
+        <Card id="result-section" className="glass border-border/50 animate-fade-in-scale">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle className="text-base font-medium">

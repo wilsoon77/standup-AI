@@ -1,122 +1,140 @@
 /**
  * Unified AI Service — Orchestrates Groq (primary) + OpenRouter (fallback)
- * Generates daily standup text from GitHub activity data.
+ * Generates daily standup text using Vercel AI SDK with streaming.
  */
 
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
+import { db } from "@/lib/db";
+import { standups } from "@/lib/db/schema";
 import type { GitHubActivity } from "@/lib/github";
-import { callGroq } from "./groq";
-import { callOpenRouter } from "./openrouter";
 
 export type Tone = "formal" | "casual" | "humor";
 
 const TONE_INSTRUCTIONS: Record<Tone, string> = {
-  formal: `Usa un tono profesional y conciso. Estructura: qué hice, qué haré, bloqueos.
-Sin emojis. Directo al punto, como para un equipo corporativo.`,
-  casual: `Usa un tono amigable y conversacional. Puedes usar primera persona informal.
-Breve, humano, como si lo escribieras tú mismo rápido para tu equipo.`,
-  humor: `Usa un tono con humor ligero y autodescriptivo. Puedes añadir un comentario gracioso
-sobre algún commit o PR. Incluye 1-2 emojis relevantes. Que sea divertido pero informativo.`,
+  formal: `Actúa como un Ingeniero de Software Senior reportando en su Daily Standup.
+Estructura tu respuesta ESTRICTAMENTE con estas viñetas (sin negritas adicionales ni markdown complejo):
+
+- COMPLETADO: qué se terminó exactamente — menciona nombres de repos y qué resuelve cada cambio.
+
+- SIGUIENTE: qué se va a trabajar hoy — inferido lógicamente desde los commits/PRs recientes.
+
+- BLOQUEOS: solo si hay evidencia real en los datos. Si no hay ninguno, escribe "Ninguno".
+
+Reglas críticas de gramática y estilo:
+1. EXTREMA CORRECCIÓN GRAMATICAL: Respeta reglas conjunciones (usa "e hice" en lugar de "y hice", "e integré" en lugar de "y integré").
+2. Tono corporativo, directo y seguro de sí mismo.
+3. No traduzcas nombres de repositorios.
+4. Redacta en primera persona del singular ("Implementé", no "Implementamos").
+5. Máximo 4-5 oraciones en total. Denso en información técnica, directo al grano.`,
+
+  casual: `Actúa como un desarrollador escribiendo su actualización diaria por Slack a su equipo de forma relajada pero directa.
+
+Estructura tu respuesta en 1 o 2 párrafos cortos (sin viñetas robóticas).
+Menciona directamente qué resolviste en los repos sin sonar como un robot que lee commits. Di el impacto real. (Ej: en vez de "Hice un commit de ui fixes", di "Limpié unos errores visuales en la interfaz").
+
+Reglas críticas de gramática y estilo:
+1. ORTOGRAFÍA PERFECTA: Usa correctamente las reglas gramaticales. 
+2. Tono fluido y asertivo ("Ayer cerré el feature de...", "Hoy me enfocaré en...").
+3. Omite saludos genéricos ("Hola", "Buen día").
+4. Máximo 3-4 oraciones en total.`,
+
+  humor: `Actúa como ese desarrollador carismático del equipo que hace que el standup sea entretenido sin dejar de ser útil.
+
+Haz solo un comentario ingenioso o sarcástico sobre la realidad de lo que codificaste (basado estrictamente en los datos). Por ejemplo, si hay muchos commits pequeños, bromea sobre algo pertinente.
+
+Reglas críticas de gramática y estilo:
+1. ORTOGRAFÍA INTACHABLE: Usa correctamente las reglas gramaticales. Un chiste pierde gracia con mala ortografía.
+2. Debe quedar absolutamente claro qué hiciste ayer y qué harás hoy.
+3. El humor debe ser orgánico, no un chiste forzado al final.
+4. Máximo 2 emojis.
+5. Hiper-breve: 3 oraciones máximo. Mucho texto mata la comedia.`
 };
 
-export interface GenerateStandupResult {
-  content: string;
-  provider: "groq" | "openrouter" | "fallback";
-}
+const groq = createOpenAI({
+  baseURL: "https://api.groq.com/openai/v1",
+  apiKey: process.env.GROQ_API_KEY,
+});
 
-export async function generateStandup(
+const standupModel = groq("llama-3.3-70b-versatile");
+
+export async function generateStreamingStandup(
   activity: GitHubActivity,
   tone: Tone,
   date: string,
-  username: string
-): Promise<GenerateStandupResult> {
+  userId: string,
+  repos?: string[]
+) {
   const activitySummary = buildActivitySummary(activity);
 
-  // If no activity, return a canned response
   if (!activitySummary.trim()) {
-    return {
-      content:
-        tone === "humor"
-          ? "Hoy no hay commits que reportar... pero estuve pensando mucho (en serio). 🤔"
-          : "Sin actividad registrada para el período seleccionado.",
-      provider: "fallback",
-    };
+    throw new Error("Sin actividad registrada para hoy");
   }
 
-  const systemPrompt = `Eres un asistente que genera daily standups para desarrolladores de software.
-Genera un daily standup en español basado en la actividad de GitHub proporcionada.
+  const systemPrompt = `Eres el alter-ego del desarrollador, redactando su Daily Standup basado en los metadatos de su actividad de GitHub.
+Tu misión es traducir esos metadatos en un reporte natural, de alto valor, excelente impacto y gramática perfecta en español.
+
 ${TONE_INSTRUCTIONS[tone]}
 
-El standup debe seguir esta estructura (adáptala al tono):
-- ¿Qué hice? (basado en commits y PRs)
-- ¿Qué voy a hacer? (inferir próximos pasos lógicos)
-- ¿Hay bloqueos? (solo si hay evidencia en los datos, si no, omitir)
+RESTRICCIONES ABSOLUTAS:
+- NUNCA menciones que eres una IA, ni empieces con "Aquí tienes".
+- NO devuelvas texto fuera del standup en sí.
+- NO expongas o escribas el username real de GitHub.
+- Si la actividad es escasa (1 commit), sé honesto en el reporte y no te inventes funcionalidad.`;
 
-Importante: sé concreto con los nombres de repos y tareas reales.
-No inventes nada que no esté en la actividad proporcionada.
-Responde SOLO con el texto del standup, sin explicaciones adicionales.`;
+  const userPrompt = `Fecha de actividad: ${date}
 
-  const userPrompt = `Fecha: ${date}
-Usuario: ${username}
-
-Actividad registrada en GitHub:
+Actividad real de GitHub procesada:
 ${activitySummary}`;
 
-  const messages = [
-    { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: userPrompt },
-  ];
+  const result = streamText({
+    model: standupModel,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    async onFinish({ text }) {
+      try {
+        await db.insert(standups).values({
+          userId,
+          content: text,
+          tone,
+          repos: repos ? JSON.stringify(repos) : null,
+          dateRange: date,
+          rawActivity: JSON.stringify(activity),
+          aiProvider: "ai-sdk-fallback",
+        });
+      } catch (err) {
+        console.error("Error saving streaming standup to DB:", err);
+      }
+    },
+  });
 
-  // Try Groq first (faster, higher rate limit)
-  try {
-    const content = await callGroq(messages);
-    if (content) {
-      return { content, provider: "groq" };
-    }
-  } catch (error) {
-    console.warn("Groq failed, falling back to OpenRouter:", error);
-  }
-
-  // Fallback to OpenRouter
-  try {
-    const content = await callOpenRouter(messages);
-    if (content) {
-      return { content, provider: "openrouter" };
-    }
-  } catch (error) {
-    console.error("OpenRouter also failed:", error);
-  }
-
-  // Both failed
-  return {
-    content:
-      "No se pudo generar el standup en este momento. Por favor, intenta de nuevo en unos minutos.",
-    provider: "fallback",
-  };
+  // Retorna texto plano en forma de stream (perfecto para leer en el frontend con getReader)
+  return result.toTextStreamResponse();
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────
 
 function buildActivitySummary(activity: GitHubActivity): string {
   const lines: string[] = [];
 
   if (activity.commits.length > 0) {
-    lines.push("COMMITS:");
+    lines.push("COMMITS (de más reciente a más antiguo):");
     activity.commits.forEach((c) => {
-      lines.push(`  - [${c.repo}] ${c.message}`);
+      lines.push(`  - [${c.repo}] "${c.message}"`);
     });
   }
 
   if (activity.pullRequests.length > 0) {
     lines.push("\nPULL REQUESTS:");
     activity.pullRequests.forEach((pr) => {
-      lines.push(`  - [${pr.repo}] ${pr.title} (${pr.state})`);
+      lines.push(`  - [${pr.repo}] "${pr.title}" — estado: ${pr.state}`);
     });
   }
 
   if (activity.issues.length > 0) {
-    lines.push("\nISSUES INVOLUCRADAS:");
+    lines.push("\nISSUES:");
     activity.issues.forEach((i) => {
-      lines.push(`  - [${i.repo}] ${i.title} (${i.state})`);
+      lines.push(`  - [${i.repo}] "${i.title}" — estado: ${i.state}`);
     });
   }
 

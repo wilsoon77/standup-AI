@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getGitHubToken, fetchGitHubActivity } from "@/lib/github";
-import { generateStandup } from "@/lib/ai";
+import {
+  getGitHubToken,
+  fetchGitHubActivity,
+  getRealGitHubUsername,
+} from "@/lib/github";
+import { generateStreamingStandup } from "@/lib/ai";
 import { db } from "@/lib/db";
 import { standups } from "@/lib/db/schema";
 import { z } from "zod";
@@ -66,7 +70,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const username = session.user.githubUsername ?? session.user.name ?? "";
+    const rawUsername = session.user.githubUsername ?? session.user.name ?? "";
+    const username = await getRealGitHubUsername(token, rawUsername);
 
     const activity = await fetchGitHubActivity(
       token,
@@ -76,24 +81,25 @@ export async function POST(req: NextRequest) {
       repos
     );
 
-    const result = await generateStandup(activity, tone, date, username);
-
-    // Save to database
-    await db.insert(standups).values({
-      userId: session.user.id,
-      content: result.content,
-      tone,
-      repos: repos ? JSON.stringify(repos) : null,
-      dateRange: date,
-      rawActivity: JSON.stringify(activity),
-      aiProvider: result.provider,
-    });
-
-    return NextResponse.json({
-      content: result.content,
-      provider: result.provider,
-      activity,
-    });
+    try {
+      // Returns a streaming response
+      const streamResponse = await generateStreamingStandup(
+        activity,
+        tone,
+        date,
+        session.user.id,
+        repos
+      );
+      return streamResponse;
+    } catch (e: any) {
+      if (e.message.includes("Sin actividad")) {
+        return NextResponse.json(
+          { error: "No se encontró actividad en GitHub para este periodo." },
+          { status: 400 }
+        );
+      }
+      throw e;
+    }
   } catch (error) {
     console.error("Standup generation error:", error);
     return NextResponse.json(

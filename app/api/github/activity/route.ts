@@ -4,6 +4,7 @@ import {
   fetchGitHubActivity,
   fetchUserRepos,
   getGitHubToken,
+  getRealGitHubUsername,
 } from "@/lib/github";
 
 export async function GET(req: NextRequest) {
@@ -27,7 +28,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const username = session.user.githubUsername ?? session.user.name ?? "";
+    const rawUsername = session.user.githubUsername ?? session.user.name ?? "";
+    const username = await getRealGitHubUsername(token, rawUsername);
 
     const [activity, userRepos] = await Promise.all([
       fetchGitHubActivity(token, username, since, until, repos),
