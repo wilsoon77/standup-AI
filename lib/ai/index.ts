@@ -26,7 +26,8 @@ Reglas críticas de gramática y estilo:
 2. Tono corporativo, directo y seguro de sí mismo.
 3. No traduzcas nombres de repositorios.
 4. Redacta en primera persona del singular ("Implementé", no "Implementamos").
-5. Máximo 4-5 oraciones en total. Denso en información técnica, directo al grano.`,
+5. Máximo 4-5 oraciones en total. Denso en información técnica, directo al grano.
+6. PROHIBIDO ABSOLUTAMENTE EL USO DE EMOJIS. Mantén el texto limpio y minimalista.`,
 
   casual: `Actúa como un desarrollador escribiendo su actualización diaria por Slack a su equipo de forma relajada pero directa.
 
@@ -37,7 +38,8 @@ Reglas críticas de gramática y estilo:
 1. ORTOGRAFÍA PERFECTA: Usa correctamente las reglas gramaticales. 
 2. Tono fluido y asertivo ("Ayer cerré el feature de...", "Hoy me enfocaré en...").
 3. Omite saludos genéricos ("Hola", "Buen día").
-4. Máximo 3-4 oraciones en total.`,
+4. Máximo 3-4 oraciones en total.
+5. PROHIBIDO ABSOLUTAMENTE EL USO DE EMOJIS. Mantén el texto limpio y minimalista.`,
 
   humor: `Actúa como ese desarrollador carismático del equipo que hace que el standup sea entretenido sin dejar de ser útil.
 
@@ -47,7 +49,7 @@ Reglas críticas de gramática y estilo:
 1. ORTOGRAFÍA INTACHABLE: Usa correctamente las reglas gramaticales. Un chiste pierde gracia con mala ortografía.
 2. Debe quedar absolutamente claro qué hiciste ayer y qué harás hoy.
 3. El humor debe ser orgánico, no un chiste forzado al final.
-4. Máximo 2 emojis.
+4. PROHIBIDO ABSOLUTAMENTE EL USO DE EMOJIS. Mantén el texto limpio y minimalista.
 5. Hiper-breve: 3 oraciones máximo. Mucho texto mata la comedia.`
 };
 
@@ -63,7 +65,8 @@ export async function generateStreamingStandup(
   tone: Tone,
   date: string,
   userId: string,
-  repos?: string[]
+  repos?: string[],
+  isGuest?: boolean
 ) {
   const activitySummary = buildActivitySummary(activity);
 
@@ -94,6 +97,8 @@ ${activitySummary}`;
       { role: "user", content: userPrompt },
     ],
     async onFinish({ text }) {
+      if (isGuest) return; // No guardamos historial para invitados
+      
       try {
         await db.insert(standups).values({
           userId,

@@ -8,13 +8,15 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const publicPaths = ["/login", "/api/auth"];
-  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
+  const protectedPaths = ["/history"];
+  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path));
 
-  if (!isLoggedIn && !isPublicPath) {
+  // Protect private routes
+  if (!isLoggedIn && isProtectedPath) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // Redirect logged-in users away from login page
   if (isLoggedIn && pathname === "/login") {
     return NextResponse.redirect(new URL("/", req.url));
   }

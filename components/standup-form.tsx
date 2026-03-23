@@ -19,6 +19,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ActivityPreview } from "./activity-preview";
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+function getTimezoneOffset() {
+  const tzo = -new Date().getTimezoneOffset();
+  const dif = tzo >= 0 ? '+' : '-';
+  const pad = (num: number) => {
+    const norm = Math.floor(Math.abs(num));
+    return (norm < 10 ? '0' : '') + norm;
+  };
+  return dif + pad(tzo / 60) + ':' + pad(tzo % 60);
+}
+
 type Tone = "formal" | "casual" | "humor";
 
 interface Activity {
@@ -29,12 +47,14 @@ interface Activity {
 
 interface Props {
   username: string;
+  isGuest?: boolean;
 }
 
-export function StandupForm({ username }: Props) {
+export function StandupForm({ username, isGuest }: Props) {
   const [tone, setTone] = useState<Tone>("casual");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+  const [guestRepoUrl, setGuestRepoUrl] = useState("");
   const [availableRepos, setAvailableRepos] = useState<string[]>([]);
   const [result, setResult] = useState("");
   const [provider, setProvider] = useState("");
@@ -45,26 +65,53 @@ export function StandupForm({ username }: Props) {
 
   // Fetch activity preview when date changes
   const fetchPreview = useCallback(async () => {
+    if (isGuest && !guestRepoUrl.trim()) {
+      setActivity(null);
+      return;
+    }
+    
     setLoadingPreview(true);
     try {
-      const params = new URLSearchParams({ since: date, until: date });
-      if (selectedRepos.length > 0) {
+      const params = new URLSearchParams({ 
+        since: date, 
+        until: date, 
+        tz: getTimezoneOffset() 
+      });
+      
+      if (isGuest) {
+        params.set("repos", guestRepoUrl.trim());
+      } else if (selectedRepos.length > 0) {
         params.set("repos", selectedRepos.join(","));
       }
+
       const res = await fetch(`/api/github/activity?${params}`);
+      if (!res.ok) throw new Error();
+      
       const data = await res.json();
       setActivity(data.activity ?? null);
-      setAvailableRepos(data.repos ?? []);
+      if (!isGuest) setAvailableRepos(data.repos ?? []);
     } catch {
       setActivity(null);
     } finally {
       setLoadingPreview(false);
     }
-  }, [date, selectedRepos]);
+  }, [date, selectedRepos, isGuest, guestRepoUrl]);
 
+  // Fetch automatically for logged-in users whenever dependencies change
   useEffect(() => {
-    fetchPreview();
-  }, [fetchPreview]);
+    if (!isGuest) fetchPreview();
+  }, [fetchPreview, isGuest]);
+
+  // Fetch with debouncing for guests, so typing the URL doesn't spam the API
+  useEffect(() => {
+    if (!isGuest || !guestRepoUrl.trim()) return;
+
+    const timer = setTimeout(() => {
+      fetchPreview();
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [guestRepoUrl, isGuest, fetchPreview]);
 
   async function handleGenerate() {
     setLoading(true);
@@ -80,13 +127,19 @@ export function StandupForm({ username }: Props) {
     }, 100);
 
     try {
+      const payloadRepos = isGuest 
+        ? (guestRepoUrl.trim() ? [guestRepoUrl.trim()] : undefined)
+        : (selectedRepos.length > 0 ? selectedRepos : undefined);
+
       const res = await fetch("/api/standup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date,
+          timezoneOffset: getTimezoneOffset(),
           tone,
-          repos: selectedRepos.length > 0 ? selectedRepos : undefined,
+          repos: payloadRepos,
+          isGuest,
         }),
       });
 
@@ -209,7 +262,21 @@ export function StandupForm({ username }: Props) {
           </div>
 
           {/* Repo filter */}
-          {availableRepos.length > 0 && (
+          {isGuest ? (
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Repositorio (URL o usuario/repo)</label>
+              <input
+                type="text"
+                placeholder="Ejemplo: microsoft/react o https://github.com/..."
+                value={guestRepoUrl}
+                onChange={(e) => {
+                  setGuestRepoUrl(e.target.value);
+                  setResult("");
+                }}
+                className="w-full border border-border/50 rounded-lg px-3 py-2.5 text-sm bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+              />
+            </div>
+          ) : availableRepos.length > 0 ? (
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">
                 Filtrar por repos{" "}
@@ -233,7 +300,7 @@ export function StandupForm({ username }: Props) {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Generate button */}
           <Button
@@ -348,6 +415,16 @@ export function StandupForm({ username }: Props) {
             <p className="text-[11px] text-muted-foreground/60 mt-2">
               Puedes editar el texto antes de copiarlo.
             </p>
+            {isGuest && (
+              <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg text-sm text-primary flex items-start gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 shrink-0">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span>
+                  <strong>¿Resultó útil?</strong> Regístrate con GitHub para guardar tu historial, auto-descubrir tus repositorios y omitir URLs manuales.
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

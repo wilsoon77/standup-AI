@@ -51,11 +51,16 @@ export async function getGitHubToken(
 
 // ─── GitHub API helpers ──────────────────────────────────────────────
 
-const GITHUB_HEADERS = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  Accept: "application/vnd.github+json",
-  "X-GitHub-Api-Version": "2022-11-28",
-});
+const GITHUB_HEADERS = (token?: string | null) => {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+};
 
 export async function getRealGitHubUsername(token: string, fallback: string): Promise<string> {
   // If fallback has no spaces and is not empty, it MIGHT be the real username.
@@ -74,26 +79,41 @@ export async function getRealGitHubUsername(token: string, fallback: string): Pr
 }
 
 export async function fetchGitHubActivity(
-  token: string,
+  token: string | null | undefined,
   username: string,
   since: string,
   until: string,
-  repoFilter?: string[]
+  repoFilter?: string[],
+  isGuest?: boolean,
+  timezoneOffset?: string
 ): Promise<GitHubActivity> {
   const headers = GITHUB_HEADERS(token);
 
-  // Formato seguro de fechas para GitHub Search
-  const dateQuery = since === until ? since : `${since}..${until}`;
+  // Formato seguro de fechas para GitHub Search considerando zona horaria
+  let dateQuery = since === until ? since : `${since}..${until}`;
+  
+  if (timezoneOffset && since.length === 10) {
+    const start = `${since}T00:00:00${timezoneOffset}`;
+    const end = `${until}T23:59:59${timezoneOffset}`;
+    dateQuery = `${start}..${end}`;
+  }
+
+  // Para invitados, queremos todo el repo; para logueados, solo SUS commits/acciones
+  const commitsPrefix = (isGuest && repoFilter && repoFilter.length > 0) 
+    ? `repo:${username.replace(/\s+/g, "")}/${repoFilter[0]}`
+    : `author:${username.replace(/\s+/g, "")}`;
+
+  const issuesPrefix = (isGuest && repoFilter && repoFilter.length > 0) 
+    ? `repo:${username.replace(/\s+/g, "")}/${repoFilter[0]}`
+    : `involves:${username.replace(/\s+/g, "")}`;
 
   // ── Commits ──
   const searchUrl = new URL("https://api.github.com/search/commits");
   searchUrl.searchParams.set(
     "q",
-    `author:${username.replace(/\s+/g, "")} committer-date:${dateQuery}`
+    `${commitsPrefix} committer-date:${dateQuery}`
   );
   searchUrl.searchParams.set("per_page", "50");
-
-  console.log(`Buscando commits: ${searchUrl.toString()}`);
 
   let commits: Commit[] = [];
   try {
@@ -136,11 +156,9 @@ export async function fetchGitHubActivity(
   const prsUrl = new URL("https://api.github.com/search/issues");
   prsUrl.searchParams.set(
     "q",
-    `author:${username.replace(/\s+/g, "")} type:pr updated:${dateQuery}`
+    `${commitsPrefix} type:pr updated:${dateQuery}`
   );
   prsUrl.searchParams.set("per_page", "20");
-
-  console.log(`Buscando PRs: ${prsUrl.toString()}`);
 
   let pullRequests: PullRequest[] = [];
   try {
@@ -165,11 +183,9 @@ export async function fetchGitHubActivity(
   const issuesUrl = new URL("https://api.github.com/search/issues");
   issuesUrl.searchParams.set(
     "q",
-    `involves:${username.replace(/\s+/g, "")} type:issue updated:${dateQuery}`
+    `${issuesPrefix} type:issue updated:${dateQuery}`
   );
   issuesUrl.searchParams.set("per_page", "10");
-
-  console.log(`Buscando Issues: ${issuesUrl.toString()}`);
 
   let issues: Issue[] = [];
   try {
@@ -195,7 +211,7 @@ export async function fetchGitHubActivity(
 
 // ─── User repos (for filter dropdown) ────────────────────────────────
 
-export async function fetchUserRepos(token: string): Promise<string[]> {
+export async function fetchUserRepos(token: string | null | undefined): Promise<string[]> {
   try {
     const res = await fetch(
       "https://api.github.com/user/repos?per_page=100&sort=pushed",

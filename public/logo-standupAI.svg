@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="100%" height="100%">
+  <defs>
+    <!-- Nuevo Gradiente Verde Neón (Inspirado en tu botón y texto AI) -->
+    <linearGradient id="greenAiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FF9D" /> <!-- Verde menta brillante -->
+      <stop offset="100%" stop-color="#00C875" /> <!-- Verde esmeralda vibrante -->
+    </linearGradient>
+  </defs>
+
+  <!-- ICONO: Grafo de Git conectando con IA -->
+  <g transform="translate(40, 20)">
+    <!-- Rama principal (Gris pizarra claro para contrastar con tu fondo oscuro) -->
+    <path d="M 20 80 L 20 20" stroke="#64748B" stroke-width="4" stroke-linecap="round" />
+    
+    <!-- Commits (Nodos) -->
+    <circle cx="20" cy="70" r="6" fill="#64748B" />
+    <circle cx="20" cy="30" r="6" fill="#64748B" />
+    
+    <!-- Rama secundaria generada (Verde IA) -->
+    <path d="M 20 70 C 50 70 50 45 50 40" stroke="url(#greenAiGradient)" stroke-width="4" fill="none" stroke-linecap="round" />
+    
+    <!-- Estrella de 4 puntas (Verde IA) -->
+    <path d="M 50 10 Q 50 25 65 25 Q 50 25 50 40 Q 50 25 35 25 Q 50 25 50 10 Z" fill="url(#greenAiGradient)" />
+  </g>
+
+  <!-- TEXTO PRINCIPAL -->
+  <!-- "Standup" en blanco/gris claro para máxima legibilidad en tu Dark Mode -->
+  <text x="125" y="73" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="44" fill="#F8FAFC">
+    Standup
+  </text>
+  
+  <!-- "AI" en verde neón -->
+  <text x="325" y="73" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="44" fill="url(#greenAiGradient)">
+    AI
+  </text>
+</svg>
