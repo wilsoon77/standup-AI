@@ -51,8 +51,11 @@ interface Props {
 }
 
 export function StandupForm({ username, isGuest }: Props) {
-  const [tone, setTone] = useState<Tone>("casual");
   const [date, setDate] = useState(getLocalDateString());
+  const [tone, setTone] = useState<Tone>("casual");
+  const [language, setLanguage] = useState<"es" | "en">("es");
+  const [todayPlan, setTodayPlan] = useState("");
+  const [blockers, setBlockers] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [guestRepoUrl, setGuestRepoUrl] = useState("");
   const [availableRepos, setAvailableRepos] = useState<string[]>([]);
@@ -140,6 +143,9 @@ export function StandupForm({ username, isGuest }: Props) {
           tone,
           repos: payloadRepos,
           isGuest,
+          todayPlan,
+          blockers,
+          language
         }),
       });
 
@@ -240,25 +246,47 @@ export function StandupForm({ username, isGuest }: Props) {
             />
           </div>
 
-          {/* Tone selector */}
-          <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Tono</label>
-            <Select 
-              value={tone} 
-              onValueChange={(v) => {
-                setTone(v as Tone);
-                setResult("");
-              }}
-            >
-              <SelectTrigger className="bg-secondary/50 border-border/50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="formal">Formal</SelectItem>
-                <SelectItem value="casual">Casual</SelectItem>
-                <SelectItem value="humor">Con humor</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Tone selector */}
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Tono</label>
+              <Select 
+                value={tone} 
+                onValueChange={(v) => {
+                  setTone(v as Tone);
+                  setResult("");
+                }}
+              >
+                <SelectTrigger className="bg-secondary/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="formal">Formal</SelectItem>
+                  <SelectItem value="casual">Casual</SelectItem>
+                  <SelectItem value="humor">Con humor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Language selector */}
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Idioma</label>
+              <Select 
+                value={language} 
+                onValueChange={(v) => {
+                  setLanguage(v as "es" | "en");
+                  setResult("");
+                }}
+              >
+                <SelectTrigger className="bg-secondary/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="es">Español</SelectItem>
+                  <SelectItem value="en">Inglés</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Repo filter */}
@@ -301,6 +329,44 @@ export function StandupForm({ username, isGuest }: Props) {
               </div>
             </div>
           ) : null}
+
+          {/* Extra context */}
+          <details className="group border border-border/50 rounded-lg bg-secondary/30 transition-all overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
+            <summary className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-between select-none outline-none">
+              Añadir contexto extra (Opcional)
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="transition-transform group-open:rotate-180">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </summary>
+            <div className="px-4 pb-4 space-y-3 border-t border-border/50 bg-secondary/10 pt-3 animate-fade-in">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Planes para hoy (Opcional)</label>
+                <Textarea 
+                  placeholder="Ej: Terminar la migración de base de datos..." 
+                  maxLength={300}
+                  className="resize-none h-16 text-sm bg-background/50"
+                  value={todayPlan}
+                  onChange={e => {
+                    setTodayPlan(e.target.value);
+                    setResult("");
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Bloqueadores (Opcional)</label>
+                <Textarea 
+                  placeholder="Ej: Esperando revisión del equipo de diseño..." 
+                  maxLength={300}
+                  className="resize-none h-16 text-sm bg-background/50"
+                  value={blockers}
+                  onChange={e => {
+                    setBlockers(e.target.value);
+                    setResult("");
+                  }}
+                />
+              </div>
+            </div>
+          </details>
 
           {/* Generate button */}
           <Button
@@ -406,12 +472,37 @@ export function StandupForm({ username, isGuest }: Props) {
             </Button>
           </CardHeader>
           <CardContent>
-            <Textarea
-              value={result}
-              onChange={(e) => setResult(e.target.value)}
-              rows={8}
-              className="resize-none font-mono text-sm bg-secondary/30 border-border/30"
-            />
+            {loading && !result ? (
+              <div className="w-full h-48 bg-[#0a0a0a] rounded-lg border border-border/50 p-5 font-mono text-xs sm:text-sm flex flex-col gap-2 relative overflow-hidden shadow-inner">
+                {/* Glare effect */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-[60px] animate-pulse-subtle" />
+                
+                <p className="text-primary/70 mb-1">{'>'} system.generateStandup({'{'} tone: '{tone}', lang: '{language}' {'}'})</p>
+                <div className="flex items-center gap-2 text-primary/80 animate-fade-in" style={{animationDelay: "150ms"}}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/80" />
+                  <span>Construyendo contexto de GitHub...</span>
+                </div>
+                {todayPlan && (
+                  <div className="flex items-center gap-2 text-primary/80 animate-fade-in" style={{animationDelay: "300ms"}}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/80" />
+                    <span>Inyectando prioridades del día...</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-primary/90 animate-fade-in" style={{animationDelay: "450ms"}}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/90" />
+                  <span>Estableciendo conexión con modelo de Lenguaje...</span>
+                </div>
+                
+                <p className="text-primary font-semibold mt-3 animate-pulse">{'>'} Recibiendo stream de datos<span className="animate-ping">_</span></p>
+              </div>
+            ) : (
+              <Textarea
+                value={result}
+                onChange={(e) => setResult(e.target.value)}
+                rows={8}
+                className="resize-none font-mono text-sm bg-secondary/30 border-border/30"
+              />
+            )}
             <p className="text-[11px] text-muted-foreground/60 mt-2">
               Puedes editar el texto antes de copiarlo.
             </p>

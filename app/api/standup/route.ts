@@ -19,6 +19,9 @@ const RequestSchema = z.object({
   tone: z.enum(["formal", "casual", "humor"]),
   repos: z.array(z.string()).optional(),
   isGuest: z.boolean().optional(),
+  todayPlan: z.string().max(300).optional(),
+  blockers: z.string().max(300).optional(),
+  language: z.enum(["es", "en"]).optional(),
 });
 
 // Permitimos 15 standups generados por usuario cada 24 horas (protege créditos)
@@ -67,7 +70,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { date, tone, repos, isGuest, timezoneOffset } = parsed.data;
+    const { date, tone, repos, isGuest, timezoneOffset, todayPlan, blockers, language } = parsed.data;
 
     // Reject if client claims to be guest but session exists, or vice-versa manually bypass
     if (isGuestUser && !isGuest) {
@@ -141,7 +144,9 @@ export async function POST(req: NextRequest) {
         date,
         isGuestUser ? "GUEST" : session.user!.id,
         formattedRepos,
-        isGuestUser // Flag to know if we should save to DB
+        isGuestUser, // Flag to know if we should save to DB
+        { todayPlan, blockers },
+        language
       );
       return streamResponse;
     } catch (e: any) {

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Terminal } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ScrambleText } from "@/components/scramble-text";
+import { InteractiveTerminal } from "@/components/interactive-terminal";
 
 export default function LandingPage() {
   return (
@@ -16,12 +18,13 @@ export default function LandingPage() {
 
         <div className="container max-w-4xl mx-auto px-4 py-24 text-center z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-mono font-medium mb-8 animate-fade-in border border-border">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            V0.1 — AI Powered
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+            <ScrambleText text="V0.1 — AI Powered" />
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 font-mono bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70 animate-fade-in-scale">
-            Standup <span className="text-primary">AI</span>
+            <ScrambleText text="Standup " className="text-foreground" /> 
+            <span className="text-primary cursor-crosshair"><ScrambleText text="AI" /></span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-sans leading-relaxed animate-fade-in" style={{ animationDelay: "100ms" }}>
@@ -40,32 +43,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Terminal/Code decorative visual */}
-        <div className="w-full max-w-3xl mx-auto px-4 pb-24 animate-fade-in mt-12" style={{ animationDelay: "300ms" }}>
-          <div className="rounded-xl border border-border bg-card/50 glass shadow-2xl overflow-hidden backdrop-blur-md">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                <div className="w-3 h-3 rounded-full bg-green-500/80" />
-              </div>
-              <div className="mx-auto text-xs font-mono text-muted-foreground">~/standup-ai/output.md</div>
-            </div>
-            <div className="p-6 font-mono text-sm text-left text-muted-foreground leading-relaxed">
-              <span className="text-primary">➜</span> <span className="text-foreground font-semibold">standup check</span> <span className="opacity-70">--user</span><br />
-              <br />
-              {'>'} <span className="text-foreground">Ayer:</span><br />
-              {'  '}• Implementé el modo oscuro usando next-themes<br />
-              {'  '}• Refactoricé el menú de navegación<br />
-              <br />
-              {'>'} <span className="text-foreground">Hoy:</span><br />
-              {'  '}• Revisar el PR de la funcionalidad de historial<br />
-              <br />
-              {'>'} <span className="text-foreground">Bloqueadores:</span><br />
-              {'  '}• Ninguno.
-            </div>
-          </div>
-        </div>
+        {/* Terminal/Code decorative visual now completely interactive 3D */}
+        <InteractiveTerminal />
       </main>
 
       <SiteFooter />

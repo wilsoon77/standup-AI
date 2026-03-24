@@ -1,9 +1,17 @@
 import { signIn } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/logo";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <Link href="/" className="absolute top-6 left-6 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium z-10 group bg-background/50 glass-subtle px-4 py-2 rounded-full border border-border/50">
+        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+        Regresar
+      </Link>
+
       {/* Background glow effects */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
@@ -13,30 +21,12 @@ export default function LoginPage() {
       {/* Card */}
       <div className="glass rounded-2xl p-10 max-w-md w-full mx-4 text-center space-y-8 animate-fade-in-scale relative z-10">
         {/* Logo / Icon */}
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-primary-foreground"
-            >
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <line x1="10" y1="9" x2="8" y2="9" />
-            </svg>
-          </div>
+        <div className="flex justify-center -mt-2">
+          <Logo className="h-14 w-auto drop-shadow-lg" />
         </div>
 
         <div className="space-y-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Standup AI</h1>
+          <h1 className="text-3xl font-semibold tracking-tight"></h1>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
             Genera tu daily standup en segundos a partir de tu actividad en GitHub, con inteligencia artificial.
           </p>
