@@ -26,8 +26,8 @@ const RequestSchema = z.object({
 
 // Permitimos 15 standups generados por usuario cada 24 horas (protege créditos)
 const standupLimiter = new RateLimiter(15, 24 * 60 * 60 * 1000);
-// Filtro estricto por IP para invitados (solo 3 peticiones/día)
-const guestIpLimiter = new RateLimiter(3, 24 * 60 * 60 * 1000);
+// Filtro estricto por IP para invitados (5 peticiones/día)
+const guestIpLimiter = new RateLimiter(5, 24 * 60 * 60 * 1000);
 // Filtro IP global anti-abuso (30 peticiones/día)
 const ipLimiter = new RateLimiter(30, 24 * 60 * 60 * 1000);
 
@@ -49,16 +49,13 @@ export async function POST(req: NextRequest) {
 
     if (isGuestUser) {
       // Bloqueo más agresivo para invitados (evitar consumo de la API gratis)
-      // COMENTADO PARA PRUEBAS:
-      /*
       const guestCheck = guestIpLimiter.check(ip);
       if (!guestCheck.success) {
         return NextResponse.json(
-          { error: "Los usuarios invitados solo pueden generar 3 standups diarios por red. Inicia sesión en GitHub para más límite." },
+          { error: "Has agotado tus 5 usos gratuitos por hoy. ¡Regístrate gratis con GitHub para generar más reportes y guardar tu historial!" },
           { status: 429 }
         );
       }
-      */
     }
 
     const body = await req.json();
@@ -84,16 +81,13 @@ export async function POST(req: NextRequest) {
     if (!isGuestUser) {
       // Flujo de usuario autenticado
       
-      // COMENTADO PARA PRUEBAS:
-      /*
       const { success, limit, remaining } = standupLimiter.check(session.user!.id);
       if (!success) {
         return NextResponse.json(
-          { error: "Has alcanzado el límite de standups diarios (15/día). Intenta mañana." },
+          { error: "Has alcanzado el límite de seguridad de standups diarios (15/día). Intenta mañana." },
           { status: 429, headers: { "X-RateLimit-Limit": limit.toString(), "X-RateLimit-Remaining": remaining.toString() } }
         );
       }
-      */
 
       token = await getGitHubToken(session.user!.id);
       if (!token) {

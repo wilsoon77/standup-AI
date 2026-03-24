@@ -399,6 +399,13 @@ export function StandupForm({ username, isGuest }: Props) {
               </span>
             )}
           </Button>
+          
+          {/* Guest Rate Limit Hint */}
+          {isGuest && (
+            <p className="text-[11px] text-center text-muted-foreground/70 animate-fade-in mt-3">
+              Modo Invitado: Tienes <strong>5 pruebas gratis</strong> por día. <a href="/login" className="text-primary hover:underline font-medium">Inicia sesión</a> para quitar el límite de pruebas y guardar tu historial.
+            </p>
+          )}
         </CardContent>
       </Card>
 

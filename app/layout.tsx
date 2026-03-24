@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   description:
     "Herramienta que lee tu actividad de GitHub y genera un daily standup listo para copiar a Slack o Teams. Gratis, con IA.",
   keywords: ["standup", "daily", "github", "ia", "developer", "productividad"],
+  icons: {
+    icon: "/icon-standupAI.svg",
+    apple: "/icon-standupAI.svg",
+  },
 };
 
 export default function RootLayout({
