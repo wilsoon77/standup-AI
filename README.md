@@ -1,9 +1,30 @@
 # Standup AI
+> De tus commits a tu daily standup en segundos.
 
 Una aplicación web impulsada por Inteligencia Artificial que lee tu actividad en GitHub (commits, Pull Requests, Issues) y genera automáticamente un reporte de "Daily Standup" listo para copiar y pegar en Slack o Teams.
 
 Usa **Groq** para una generación ultrarrápida (usando `llama-3.3-70b-versatile`) con **OpenRouter** como opción de respaldo.
 
+## ¿Qué problema resuelve?
+ 
+Todo desarrollador ha vivido esto: son las 9:59am, el standup empieza en un minuto y no recuerdas qué hiciste ayer. Standup AI conecta tu cuenta de GitHub y genera el texto por ti — con el tono que prefieras y basado en tu actividad real.
+ 
+---
+ 
+## Capturas Demo
+
+![demo](public/captura-demo.png)
+
+### Página Login
+![demo](public/captura-demo2.png)
+
+### Página Principal
+![demo](public/captura-demo-logueado.png)
+
+### Página de Historial
+![demo](public/captura-demo-historial.png)
+
+---
 ## Características
 
 - 🔐 Autenticación segura vía GitHub OAuth para guardar historial
@@ -13,10 +34,13 @@ Usa **Groq** para una generación ultrarrápida (usando `llama-3.3-70b-versatile
 - 🤖 Generación asistida por IA usando Llama 3 (Groq + OpenRouter)
 - 🎭 Selector de tonos: Formal, Casual, o Con Humor
 - 💿 Guarda todos tus reportes anteriores en el historial de forma segura localmente (Solo para usuarios logueados)
-- 🎨 UI con Dark Mode, Glassmorphism, animaciones interactivas
+- 🎨 UI con Dark Mode, UI diseñada para devs
 - 🔒 Seguridad Anti-Prompt-Injection al enviar bloqueos personalizados
-- 🛡️ Rate Limiter de protección API (Máx. 5 reportes por invitado y 15 en cuentas premium)
+- 🛡️ Rate Limiter de protección API (5 reportes por invitado y 15 para usuarios registrados)
 - 🐳 Optimización para despliegue usando Docker
+
+---
+
 
 ## 🛠️ Tecnologías Usadas
 
@@ -24,8 +48,16 @@ Usa **Groq** para una generación ultrarrápida (usando `llama-3.3-70b-versatile
 - **Estilos & UI**: Tailwind CSS v4, Lucide Icons, Glassmorphism UI
 - **IA & APIs**: Groq (Llama 3), OpenRouter (Fallback), Vercel AI SDK
 - **Integraciones**: GitHub REST API, NextAuth (Auth.js)
-- **Base de Datos**: Turso / SQLite (vía Drizzle ORM)
-- **🚀 Infraestructura y Despliegue**: Esta aplicación ha sido diseñada y optimizada para ser alojada y ejecutada en **CubePath** como servidor principal para garantizar su estabilidad y rendimiento en producción.
+- **Base de Datos**: libSQL autoalojado (SQLite) + Drizzle ORM
+- **🚀 Infraestructura y Despliegue**: Esta aplicación ha sido diseñada y optimizada para ser alojada y ejecutada en **CubePath** como servidor principal para garantizar su estabilidad y rendimiento en producción + coolify como orquestador de contenedores.
+
+**¿Por qué CubePath?**
+- Un solo VPS aloja tanto la app como la BD — sin servicios externos de BD
+- Coolify instalado desde el Marketplace de CubePath con 1 click
+- Auto-deploy configurado desde GitHub en cada push a `main`
+- SSL automático con Let's Encrypt vía Coolify
+
+---
 
 ## 🚀 Roadmap / Future Features Que se pueden agregar
 
@@ -37,55 +69,79 @@ Usa **Groq** para una generación ultrarrápida (usando `llama-3.3-70b-versatile
 
 Toda la base de los reportes es controlable desde los Prompts de Sistema localizados en `lib/ai/index.ts`. Puedes escalar y mejorar el comportamiento del modelo modificando este archivo. Algunas opciones de escalabilidad futura incluirian:
 
-1. **Formato Nativo para Slack**: Modificar el prompt para exigir que envuelva nombres de repositorios en \`backticks\` y usar viñetas precisas y emojis tácticos (`🚧`, `📈`).
+1. **Formato Nativo para Slack**: Modificar el prompt para exigir que envuelva nombres de repositorios en \`backticks\` y usar viñetas precisas.
 2. **Formato Orientado a Tareas (Feature-Oriented)**: Forzar a la IA a agrupar los commits no por orden cronológico, sino agrupados bajo la "Feature" o componente que hayan modificado.
 3. **Formateo JSON Estricto**: Hacer que responda con una estructura JSON en caso de querer alimentar otro sistema (como crear tickets automáticos en Jira a partir del standup).
 4. **Resaltado Markdown**: Escalar la interfaz de la aplicación actual para soportar pestañas de "**Raw**" (Copiable) y "**Preview**" (Renderizado visual de todo el Markdown).
 
-## Prerrequisitos (API Keys)
+---
 
-Para correr este proyecto vas a necesitar obtener algunas llaves gratuitas:
-
-1. **GitHub OAuth App**: Ve a [Developer Settings](https://github.com/settings/developers), crea una OAuth App y obtén el **Client ID** y **Client Secret**. Añade `http://localhost:3000/api/auth/callback/github` como Callback URL.
-2. **Groq API Key**: Ve a [Groq Console](https://console.groq.com/) y obtén tu apikey gratuita.
-3. **OpenRouter API Key**: Ve a [OpenRouter](https://openrouter.ai/) y obtén tu apikey gratuita.
-
-## Cómo correrlo localmente
-
-1. Clona el proyecto y entra a su carpeta:
+## 📌 Para Correr Localmente
+### Prerequisitos
+ 
+Necesitas estas API keys gratuitas:
+ 
+| Servicio | Dónde obtenerla |
+|---|---|
+| GitHub OAuth App | [github.com/settings/developers](https://github.com/settings/developers) |
+| Groq API Key | [console.groq.com](https://console.groq.com) |
+| OpenRouter API Key | [openrouter.ai/keys](https://openrouter.ai/keys) |
+ 
+### Instalación
+ 
 ```bash
-git clone https://github.com/wilson-dev-ops/standup-ai.git
-cd standup-ai
-```
-
-2. Instala las dependencias:
-```bash
+# 1. Clonar el repositorio
+git clone https://github.com/wilsoon77/standup-AI.git
+cd standup-AI
+ 
+# 2. Instalar dependencias
 npm install
-```
-
-3. Crea y llena el archivo `.env.local`:
-```bash
+ 
+# 3. Configurar variables de entorno
 cp .env.example .env.local
+# Llenar .env.local con tus API keys
 ```
-Llénalo con las llaves que obtuviste en los requisitos.
-
-4. Configura y migra la Base de Datos local:
+ 
+### Variables de entorno
+ 
 ```bash
+NEXTAUTH_SECRET=           # openssl rand -base64 32
+NEXTAUTH_URL=http://localhost:3000
+AUTH_TRUST_HOST=true
+ 
+GITHUB_CLIENT_ID=          # De tu OAuth App en GitHub
+GITHUB_CLIENT_SECRET=
+ 
+GROQ_API_KEY=              # De console.groq.com
+OPENROUTER_API_KEY=        # De openrouter.ai
+ 
+TURSO_DATABASE_URL=file:local.db
+TURSO_AUTH_TOKEN=          # Dejar vacío en local
+```
+ 
+### Iniciar
+ 
+```bash
+# Crear base de datos local
 npm run db:generate
 npm run db:migrate
-```
-
-5. Inicializa el servidor local de desarrollo:
-```bash
+ 
+# Iniciar servidor de desarrollo
 npm run dev
 ```
-
-6. ¡Listo! Abre la app en `http://localhost:3000`.
-
-## Scripts Útiles
-
-- `npm run dev` - Arranca el Next.js local (desarrollo).
-- `npm run build` - Construye una build óptima para producción.
-- `npm run db:generate` - Genera una estructura de migración usando `drizzle-schema.ts`.
-- `npm run db:migrate` - Aplica migraciones directamente a la base de SQLite local.
-- `npm run db:studio` - Interfaz gráfica para revisar qué datos hay guardados en la base de datos.
+ 
+Abre [http://localhost:3000](http://localhost:3000).
+ 
+---
+ 
+## Scripts
+ 
+| Comando | Descripción |
+|---|---|
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm run db:generate` | Generar migraciones desde el schema |
+| `npm run db:migrate` | Aplicar migraciones a la BD |
+| `npm run db:studio` | UI visual para explorar la BD |
+ 
+---
